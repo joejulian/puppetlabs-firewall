@@ -15,15 +15,15 @@ describe 'iptables provider detection' do
 
   it "should default to iptables provider if /sbin/iptables[-save] exists" do
     # Stub lookup for /sbin/iptables & /sbin/iptables-save
-    exists.any_instance.stubs(:which).with("/sbin/iptables").
+    exists.any_instance.stubs(:which).with("iptables").
       returns "/sbin/iptables"
-    exists.any_instance.stubs(:which).with("/sbin/iptables-save").
+    exists.any_instance.stubs(:which).with("iptables-save").
       returns "/sbin/iptables-save"
 
     # Every other command should return false so we don't pick up any
     # other providers
     exists.any_instance.stubs(:which).with() { |value|
-      ! ["/sbin/iptables","/sbin/iptables-save"].include?(value)
+      ! ["iptables","iptables-save"].include?(value)
     }.returns false
 
     # Create a resource instance and make sure the provider is iptables
@@ -49,12 +49,13 @@ describe 'iptables provider' do
 
     # Stub iptables version
     Facter.fact(:iptables_version).stubs(:value).returns("1.4.2")
+
+    Puppet::Util::Execution.stubs(:execute).returns ""
+    Puppet::Util.stubs(:which).with("iptables-save").
+      returns "/sbin/iptables-save"
   end
 
   it 'should be able to get a list of existing rules' do
-    # Pretend to return nil from iptables
-    provider.expects(:execute).with(['/sbin/iptables-save']).returns("")
-
     provider.instances.each do |rule|
       rule.should be_instance_of(provider)
       rule.properties[:provider].to_s.should == provider.name.to_s
@@ -62,7 +63,8 @@ describe 'iptables provider' do
   end
 
   it 'should ignore lines with fatal errors' do
-    provider.expects(:execute).with(['/sbin/iptables-save']).returns("FATAL: Could not load /lib/modules/2.6.18-028stab095.1/modules.dep: No such file or directory")
+    Puppet::Util::Execution.stubs(:execute).with(['/sbin/iptables-save']).
+      returns("FATAL: Could not load /lib/modules/2.6.18-028stab095.1/modules.dep: No such file or directory")
 
     provider.instances.length.should == 0
   end
@@ -85,7 +87,12 @@ describe 'iptables provider' do
         # Iterate across each parameter, creating an example for comparison
         data[:params].each do |param_name, param_value|
           it "the parameter '#{param_name.to_s}' should match #{param_value.inspect}" do
-            resource[param_name].should == data[:params][param_name]
+            # booleans get cludged to string "true"
+            if param_value == true then
+              resource[param_name].should == "true"
+            else
+              resource[param_name].should == data[:params][param_name]
+            end
           end
         end
       end
@@ -114,16 +121,12 @@ describe 'iptables provider' do
     let(:instance) { provider.new(resource) }
 
     it 'rule name contains a MD5 sum of the line' do
-      resource[:name].should == "9999 #{Digest::MD5.hexdigest(resource[:line])}"
+      resource[:name].should == "9000 #{Digest::MD5.hexdigest(resource[:line])}"
     end
   end
 
   describe 'when creating resources' do
     let(:instance) { provider.new(resource) }
-
-    before :each do
-      provider.expects(:execute).with(['/sbin/iptables-save']).returns("")
-    end
 
     it 'insert_args should be an array' do
       instance.insert_args.class.should == Array
@@ -132,10 +135,6 @@ describe 'iptables provider' do
 
   describe 'when modifying resources' do
     let(:instance) { provider.new(resource) }
-
-    before :each do
-      provider.expects(:execute).with(['/sbin/iptables-save']).returns ""
-    end
 
     it 'update_args should be an array' do
       instance.update_args.class.should == Array

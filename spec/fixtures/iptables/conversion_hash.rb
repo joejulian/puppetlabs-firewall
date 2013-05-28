@@ -289,6 +289,67 @@ ARGS_TO_HASH = {
       :pkttype => 'multicast',
     },
   },
+  'socket_option' => {
+    :line => '-A PREROUTING -m socket -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'PREROUTING',
+      :socket => true,
+    },
+  },
+  'isfragment_option' => {
+    :line => '-A INPUT -f -j ACCEPT',
+    :table => 'filter',
+    :params => {
+      :action => 'accept',
+      :isfragment => true,
+    },
+  },
+  'single_tcp_sport' => {
+    :line => '-A OUTPUT -s 10.94.100.46/32 -p tcp -m tcp --sport 20443 -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'OUTPUT',
+      :source => "10.94.100.46/32",
+      :proto => "tcp",
+      :sport => ["20443"],
+    },
+  },
+  'single_udp_sport' => {
+    :line => '-A OUTPUT -s 10.94.100.46/32 -p udp -m udp --sport 20443 -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'OUTPUT',
+      :source => "10.94.100.46/32",
+      :proto => "udp",
+      :sport => ["20443"],
+    },
+  },
+  'single_tcp_dport' => {
+    :line => '-A OUTPUT -s 10.94.100.46/32 -p tcp -m tcp --dport 20443 -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'OUTPUT',
+      :source => "10.94.100.46/32",
+      :proto => "tcp",
+      :dport => ["20443"],
+    },
+  },
+  'single_udp_dport' => {
+    :line => '-A OUTPUT -s 10.94.100.46/32 -p udp -m udp --dport 20443 -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'OUTPUT',
+      :source => "10.94.100.46/32",
+      :proto => "udp",
+      :dport => ["20443"],
+    },
+  },
 }
 
 # This hash is for testing converting a hash to an argument line.
@@ -642,5 +703,25 @@ HASH_TO_ARGS = {
       :pkttype => 'multicast',
     },
     :args => ["-t", :filter, "-i", "eth0", "-p", :tcp, "-m", "pkttype", "--pkt-type", :multicast, "-m", "comment", "--comment", "062 pkttype multicast", "-j", "ACCEPT"],
+  },
+  'socket_option' => {
+    :params => {
+      :name => '050 socket option',
+      :table => 'mangle',
+      :action => 'accept',
+      :chain => 'PREROUTING',
+      :socket => true,
+    },
+    :args => ['-t', :mangle, '-p', :tcp, '-m', 'socket', '-m', 'comment', '--comment', '050 socket option', '-j', 'ACCEPT'],
+  },
+  'isfragment_option' => {
+    :params => {
+      :name => '050 isfragment option',
+      :table => 'filter',
+      :proto => :all,
+      :action => 'accept',
+      :isfragment => true,
+    },
+    :args => ['-t', :filter, '-p', :all, '-f', '-m', 'comment', '--comment', '050 isfragment option', '-j', 'ACCEPT'],
   },
 }

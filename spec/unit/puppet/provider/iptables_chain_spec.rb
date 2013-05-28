@@ -1,7 +1,7 @@
 #!/usr/bin/env rspec
 
 require 'spec_helper'
-require 'puppet/provider/confine/exists'
+require 'puppet'
 
 describe 'iptables chain provider detection' do
   let(:exists) {
@@ -15,25 +15,25 @@ describe 'iptables chain provider detection' do
 
   it "should default to iptables provider if /sbin/(eb|ip|ip6)tables[-save] exists" do
     # Stub lookup for /sbin/iptables & /sbin/iptables-save
-    exists.any_instance.stubs(:which).with("/sbin/ebtables").
+    exists.any_instance.stubs(:which).with("ebtables").
       returns "/sbin/ebtables"
-    exists.any_instance.stubs(:which).with("/sbin/ebtables-save").
+    exists.any_instance.stubs(:which).with("ebtables-save").
       returns "/sbin/ebtables-save"
 
-    exists.any_instance.stubs(:which).with("/sbin/iptables").
+    exists.any_instance.stubs(:which).with("iptables").
       returns "/sbin/iptables"
-    exists.any_instance.stubs(:which).with("/sbin/iptables-save").
+    exists.any_instance.stubs(:which).with("iptables-save").
       returns "/sbin/iptables-save"
 
-    exists.any_instance.stubs(:which).with("/sbin/ip6tables").
+    exists.any_instance.stubs(:which).with("ip6tables").
       returns "/sbin/ip6tables"
-    exists.any_instance.stubs(:which).with("/sbin/ip6tables-save").
+    exists.any_instance.stubs(:which).with("ip6tables-save").
       returns "/sbin/ip6tables-save"
 
     # Every other command should return false so we don't pick up any
     # other providers
     exists.any_instance.stubs(:which).with() { |value|
-      value !~ /\/sbin\/(eb|ip|ip6)tables(-save)?$/
+      value !~ /(eb|ip|ip6)tables(-save)?$/
     }.returns false
 
     # Create a resource instance and make sure the provider is iptables
@@ -61,9 +61,9 @@ describe 'iptables chain provider' do
 
   it 'should be able to get a list of existing rules' do
     # Pretend to return nil from iptables
-    provider.expects(:execute).with(['/sbin/ebtables-save']).returns("")
-    provider.expects(:execute).with(['/sbin/iptables-save']).returns("")
-    provider.expects(:execute).with(['/sbin/ip6tables-save']).returns("")
+    provider.stubs(:execute).with(['/sbin/ip6tables-save']).returns("")
+    provider.stubs(:execute).with(['/sbin/ebtables-save']).returns("")
+    provider.stubs(:execute).with(['/sbin/iptables-save']).returns("")
 
     provider.instances.each do |chain|
       chain.should be_instance_of(provider)

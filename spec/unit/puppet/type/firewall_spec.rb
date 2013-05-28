@@ -140,6 +140,11 @@ describe firewall do
         @resource[port].should == ['22','23']
       end
 
+      it "should accept a #{port} as a number" do
+        @resource[port] = 22
+        @resource[port].should == ['22']
+      end
+
       it "should accept a #{port} as a hyphen separated range" do
         @resource[port] = ['22-1000']
         @resource[port].should == ['22-1000']
@@ -158,11 +163,11 @@ describe firewall do
       end
 
       it "should not accept something invalid for #{port}" do
-        expect { @resource[port] = 'something odd' }.to raise_error(Puppet::Error, /^Parameter .+ failed: Munging failed for value ".+" in class .+: no such service/)
+        expect { @resource[port] = 'something odd' }.to raise_error(Puppet::Error, /^Parameter .+ failed.+Munging failed for value ".+" in class .+: no such service/)
       end
 
       it "should not accept something invalid in an array for #{port}" do
-        expect { @resource[port] = ['something odd','something even odder'] }.to raise_error(Puppet::Error, /^Parameter .+ failed: Munging failed for value ".+" in class .+: no such service/)
+        expect { @resource[port] = ['something odd','something even odder'] }.to raise_error(Puppet::Error, /^Parameter .+ failed.+Munging failed for value ".+" in class .+: no such service/)
       end
     end
   end
@@ -310,19 +315,19 @@ describe firewall do
   describe ':gid and :uid' do
     it 'should allow me to set uid' do
       @resource[:uid] = 'root'
-      @resource[:uid].should == ['root']
+      @resource[:uid].should == 'root'
     end
-    it 'should allow me to set uid as an array, breaking iptables' do
+    it 'should allow me to set uid as an array, and silently hide my error' do
       @resource[:uid] = ['root', 'bobby']
-      @resource[:uid].should == ['root', 'bobby']
+      @resource[:uid].should == 'root'
     end
     it 'should allow me to set gid' do
       @resource[:gid] = 'root'
-      @resource[:gid].should == ['root']
+      @resource[:gid].should == 'root'
     end
-    it 'should allow me to set gid as an array, breaking iptables' do
+    it 'should allow me to set gid as an array, and silently hide my error' do
       @resource[:gid] = ['root', 'bobby']
-      @resource[:gid].should == ['root', 'bobby']
+      @resource[:gid].should == 'root'
     end
   end
 
@@ -489,6 +494,40 @@ describe firewall do
 
     it 'should fail when the pkttype value is not recognized' do
       lambda { @resource[:pkttype] = 'not valid' }.should raise_error(Puppet::Error)
+    end
+  end
+
+  describe 'autorequire packages' do
+    [:iptables, :ip6tables].each do |provider|
+      it "provider #{provider} should autorequire package iptables" do
+        @resource[:provider] = provider
+        @resource[:provider].should == provider
+        package = Puppet::Type.type(:package).new(:name => 'iptables')
+        catalog = Puppet::Resource::Catalog.new
+        catalog.add_resource @resource
+        catalog.add_resource package
+        rel = @resource.autorequire[0]
+        rel.source.ref.should == package.ref
+        rel.target.ref.should == @resource.ref
+      end
+
+      it "provider #{provider} should autorequire packages iptables and iptables-persistent" do
+        @resource[:provider] = provider
+        @resource[:provider].should == provider
+        packages = [
+          Puppet::Type.type(:package).new(:name => 'iptables'),
+          Puppet::Type.type(:package).new(:name => 'iptables-persistent')
+        ]
+        catalog = Puppet::Resource::Catalog.new
+        catalog.add_resource @resource
+        packages.each do |package|
+          catalog.add_resource package
+        end
+        packages.zip(@resource.autorequire) do |package, rel|
+          rel.source.ref.should == package.ref
+          rel.target.ref.should == @resource.ref
+        end
+      end
     end
   end
 end
